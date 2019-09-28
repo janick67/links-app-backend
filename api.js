@@ -145,7 +145,11 @@ app.get('/api/logout',(req, res) => {
 });
 
 app.get('/api/links/',(req,res) => {
-    let sql = `SELECT * FROM links`;
+    let sql = `SELECT l.* FROM users u
+              join roles r on u.roleid = r.id
+              join roleslinks rl on rl.roleid = r.id
+              join links l on l.id = rl.linkid
+              WHERE u.id = ${req.user.id}`;
     const query = db.query(sql, (err, result) => {
     if (err){console.error(err);  return res.send(err)};
     res.send(result);
