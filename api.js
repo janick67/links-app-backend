@@ -9,6 +9,7 @@ const passport = require('passport');
 const bodyParser = require('body-parser');
 const cookieParser = require('cookie-parser');
 const LocalStrategy = require('passport-local').Strategy;
+const LdapStrategy = require('passport-ldapauth');
 
 const app = express();
 app.use(cors());
@@ -44,18 +45,45 @@ const sessionStore = new MySQLStore({
             data: 'data'
 }}}, db);
 
+var WindowsStrategy = require('passport-windowsauth');
+
+passport.use(new WindowsStrategy({
+  ldap: {
+    url:             'ldap://ldap.forumsys.com:389/dc=example,dc=com',
+    base:            'dc=example,dc=com',
+    bindDN:          'read-only-admin',
+    bindCredentials: 'password'
+  }
+}, function(profile, done){
+  console.log(profile);
+  User.findOrCreate({ waId: profile.id }, function (err, user) {
+    console.log(user);
+    done(err, user);
+  });
+}));
+
+var OptLDAP = {
+  server: {
+    url: "ldap://ldap.forumsys.com:389",
+    adminDn: "cn=read-only-admin,dc=example,dc=com",
+    adminPassword: "password",
+    searchBase: "dc=example,dc=com",
+    searchFilter: "(uid={{username}})"
+}
+};
+
+passport.use(new LdapStrategy(OptLDAP));
+//
 // configure passport.js to use the local strategy
-passport.use(new LocalStrategy(
-  { usernameField: 'email' },
-  (email, password, done) => {
+passport.use(new LocalStrategy((username, password, done) => {
     // console.log('Inside local strategy callback')
-    db.query(`select * from users where email = "${email}"`,(err, result) => {
+    db.query(`select * from users where username = "${username}"`,(err, result) => {
         if (err){return console.log(err)};
         const user = result[0];
         // console.log('Użytkownik z Local: ',email, typeof email,password, typeof password);
         if (typeof user === 'undefined') {return done(true, false);}
         // console.log('Użytkownik z bazy: ',user.email ,typeof user.email, user.password,typeof user.password);
-        if(email == user.email && password == user.password) {
+        if(username == user.username && password == user.password) {
           // console.log('Local strategy returned true')
           return done(false, user)
         }else{
@@ -69,16 +97,17 @@ passport.use(new LocalStrategy(
 // tell passport how to serialize the user
 passport.serializeUser((user, done) => {
   //console.log('Inside serializeUser callback. User id is save to the session file store here')
-  done(null, user.id);
+  done(null, user.uid);
 });
 
-passport.deserializeUser((id, done) => {
+passport.deserializeUser((uid, done) => {
 //  console.log('Inside deserializeUser callback')
   //console.log(`The user id passport saved in the session file store is: ${id}`)
-  db.query(`select * from users where id = "${id}"`, function (err, rows){
-      //console.log('rows: ', rows);
-        done(err, rows[0]);
-  });
+  done(null,{uid})
+  // db.query(`select * from users where id = "${id}"`, function (err, rows){
+  //     //console.log('rows: ', rows);
+  //       done(err, rows[0]);
+  // });
 });
 
 // add & configure middleware
@@ -123,17 +152,18 @@ app.use(function(req, res, next) {
 
 app.post('/api/login', (req, res, next) => {
   // console.log('Inside the new POST /login callback')
-  passport.authenticate('local', (err, user, info) => {
-    // console.log("(err, user, info)",err, user, info);
-    if (err || !user) return res.send("Nie udało się uwierzytelnic");
-    //console.log('Inside passport.authenticate() callback');
-    //console.log(`req.session.passport: ${JSON.stringify(req.session.passport)}`)
-    ///console.log(`req.user: ${JSON.stringify(req.user)}`)
+  console.log(req.body)
+  passport.authenticate('ldapauth', (err, user, info) => {
+    console.log("(err, user, info)",err, user, info);
+    if (err || !user) return res.send({error:"Nie udało się uwierzytelnic",user:null});
+    console.log('Inside passport.authenticate() callback');
+    console.log(`req.session.passport: ${JSON.stringify(req.session.passport)}`)
+    console.log(`req.user: ${JSON.stringify(req.user)}`)
     req.login(user, (err) => {
-      // console.log('Inside req.login() callback')
-      // console.log(`req.session.passport: ${JSON.stringify(req.session.passport)}`)
-      // console.log(`req.user: ${JSON.stringify(req.user)}`);
-      return res.send("Zalogowano pomyślnie");
+      console.log('Inside req.login() callback')
+      console.log(`req.session.passport: ${JSON.stringify(req.session.passport)}`)
+      console.log(`req.user: ${JSON.stringify(req.user)}`);
+      return res.send({error:null,user:user.uid});
     })
   })(req, res, next)
 });
@@ -149,7 +179,7 @@ app.get('/api/links/',(req,res) => {
               join roles r on u.roleid = r.id
               join roleslinks rl on rl.roleid = r.id
               join links l on l.id = rl.linkid
-              WHERE u.id = ${req.user.id}`;
+              WHERE u.uid = "${req.user.uid}"`;
     const query = db.query(sql, (err, result) => {
     if (err){console.error(err);  return res.send(err)};
     res.send(result);
