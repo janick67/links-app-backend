@@ -114,7 +114,7 @@ app.use(function(req, res, next) {
   });
 
   app.use(function(req, res, next) {
-    if(typeof req.user === 'undefined' && req.path.indexOf('api/login') <= 0){
+    if(typeof req.user === 'undefined' && req.path.indexOf('api/') >= 0 && req.path.indexOf('api/login') <= 0 ){
         return res.status(404).send({error:"Najpierw się zaloguj",user:null});
     }
     next();
@@ -155,9 +155,14 @@ app.get('/api/links/',(req,res) => {
     });
 })
 
+app.use(express.static('./front/'));
+
+
 app.use(function(req, res, next) {
   return res.status(404).send('Route '+req.url+' Not found.');
 });
+
+
 
 app.listen(3001, () => console.log(aktualnaData()+'Listen on port 3001....'))
 
