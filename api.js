@@ -46,16 +46,15 @@ const sessionStore = new MySQLStore({
 
 // configure passport.js to use the local strategy
 passport.use(new LocalStrategy(
-  { usernameField: 'email' },
-  (email, password, done) => {
+  (username, password, done) => {
     // console.log('Inside local strategy callback')
-    db.query(`select * from users where email = "${email}"`,(err, result) => {
+    db.query(`select * from users where username = "${username}"`,(err, result) => {
         if (err){return console.log(err)};
         const user = result[0];
-        // console.log('Użytkownik z Local: ',email, typeof email,password, typeof password);
+        // console.log('Użytkownik z Local: ',username, password);
         if (typeof user === 'undefined') {return done(true, false);}
         // console.log('Użytkownik z bazy: ',user.email ,typeof user.email, user.password,typeof user.password);
-        if(email == user.email && password == user.password) {
+        if(username == user.username && password == user.password) {
           // console.log('Local strategy returned true')
           return done(false, user)
         }else{
@@ -116,16 +115,16 @@ app.use(function(req, res, next) {
 
   app.use(function(req, res, next) {
     if(typeof req.user === 'undefined' && req.path.indexOf('api/login') <= 0){
-        return res.status(404).send("Najpierw się zaloguj");
+        return res.status(404).send({error:"Najpierw się zaloguj",user:null});
     }
     next();
   });
 
 app.post('/api/login', (req, res, next) => {
-  // console.log('Inside the new POST /login callback')
+  // console.log('Inside the new POST /login callback', req.body)
   passport.authenticate('local', (err, user, info) => {
     // console.log("(err, user, info)",err, user, info);
-    if (err || !user) return res.send("Nie udało się uwierzytelnic");
+    if (err || !user) return res.send({error:"Nie udało się uwierzytelnic",user:null});
     //console.log('Inside passport.authenticate() callback');
     //console.log(`req.session.passport: ${JSON.stringify(req.session.passport)}`)
     ///console.log(`req.user: ${JSON.stringify(req.user)}`)
@@ -133,7 +132,7 @@ app.post('/api/login', (req, res, next) => {
       // console.log('Inside req.login() callback')
       // console.log(`req.session.passport: ${JSON.stringify(req.session.passport)}`)
       // console.log(`req.user: ${JSON.stringify(req.user)}`);
-      return res.send("Zalogowano pomyślnie");
+      return res.send({error:null,user:"Zalogowano pomyślnie"});
     })
   })(req, res, next)
 });
