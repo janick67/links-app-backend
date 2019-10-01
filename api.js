@@ -11,6 +11,7 @@ const cookieParser = require('cookie-parser');
 const LocalStrategy = require('passport-local').Strategy;
 const LdapStrategy = require('passport-ldapauth');
 
+
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -45,22 +46,7 @@ const sessionStore = new MySQLStore({
             data: 'data'
 }}}, db);
 
-var WindowsStrategy = require('passport-windowsauth');
 
-passport.use(new WindowsStrategy({
-  ldap: {
-    url:             'ldap://ldap.forumsys.com:389/dc=example,dc=com',
-    base:            'dc=example,dc=com',
-    bindDN:          'read-only-admin',
-    bindCredentials: 'password'
-  }
-}, function(profile, done){
-  console.log(profile);
-  User.findOrCreate({ waId: profile.id }, function (err, user) {
-    console.log(user);
-    done(err, user);
-  });
-}));
 
 var OptLDAP = {
   server: {
@@ -145,7 +131,7 @@ app.use(function(req, res, next) {
 
   app.use(function(req, res, next) {
     if(typeof req.user === 'undefined' && req.path.indexOf('api/login') <= 0){
-        return res.status(404).send("Najpierw się zaloguj");
+        return res.status(404).send({error: "Najpierw się zaloguj",user:null});
     }
     next();
   });
@@ -185,6 +171,11 @@ app.get('/api/links/',(req,res) => {
     res.send(result);
     });
 })
+
+app.get('/api/logout', function(req, res){
+  req.logout();
+  res.redirect('/');
+});
 
 app.use(function(req, res, next) {
   return res.status(404).send('Route '+req.url+' Not found.');
