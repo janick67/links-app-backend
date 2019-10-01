@@ -172,10 +172,6 @@ app.get('/api/links/',(req,res) => {
     });
 })
 
-app.get('/api/logout', function(req, res){
-  req.logout();
-  res.redirect('/');
-});
 
 app.use(function(req, res, next) {
   return res.status(404).send('Route '+req.url+' Not found.');
