@@ -4,7 +4,9 @@ const cors = require('cors')
 const path = require('path');
 const uuid = require('uuid/v4');
 const session = require('express-session');
-const MySQLStore = require('express-mysql-session')(session);
+//const MySQLStore = require('express-mysql-session')(session);
+const sqlite3 = require('sqlite3').verbose();
+const SQLiteStore = require('connect-sqlite3')(session);
 const passport = require('passport');
 const bodyParser = require('body-parser');
 const cookieParser = require('cookie-parser');
@@ -19,41 +21,23 @@ app.use(cookieParser());
 
 const data = new Date();
 
-const db = mysql.createConnection({
-  host    : 'localhost',
-  user    : 'janick67',
-  password: 'janick67a',
-  database: 'links'
-})
-
-db.connect((err) => {
-  if(err) throw err;
-  console.log(aktualnaData()+'MySql Connected...');
+let db = new sqlite3.Database('./db/data.sqlite',sqlite3.OPEN_READWRITE, (err) => {
+  if (err) {
+    console.error(err.message);
+  }
+  console.log('Connected to the database.');
 });
-
-
-
-const sessionStore = new MySQLStore({
-    expiration: 10800000,
-    createDatabaseTable: true,
-    schema: {
-        tableName: 'sessions',
-        columnNames: {
-            session_id: 'session_id',
-            expires: 'expires',
-            data: 'data'
-}}}, db);
 
 // configure passport.js to use the local strategy
 passport.use(new LocalStrategy(
   (username, password, done) => {
-    // console.log('Inside local strategy callback')
-    db.query(`select * from users where username = "${username}"`,(err, result) => {
+    console.log('Inside local strategy callback')
+    db.all(`select * from users where username = "${username}"`,[],(err, result) => {
         if (err){return console.log(err)};
         const user = result[0];
         // console.log('Użytkownik z Local: ',username, password);
         if (typeof user === 'undefined') {return done(true, false);}
-        // console.log('Użytkownik z bazy: ',user.email ,typeof user.email, user.password,typeof user.password);
+        // console.log('Użytkownik z bazy: ',user.username ,typeof user.username, user.password,typeof user.password);
         if(username == user.username && password == user.password) {
           // console.log('Local strategy returned true')
           return done(false, user)
@@ -74,7 +58,8 @@ passport.serializeUser((user, done) => {
 passport.deserializeUser((id, done) => {
 //  console.log('Inside deserializeUser callback')
   //console.log(`The user id passport saved in the session file store is: ${id}`)
-  db.query(`select * from users where id = "${id}"`, function (err, rows){
+
+  db.all(`select * from users where id = "${id}"`, [], function (err, rows){
       //console.log('rows: ', rows);
         done(err, rows[0]);
   });
@@ -82,16 +67,10 @@ passport.deserializeUser((id, done) => {
 
 // add & configure middleware
 app.use(session({
-  genid: (req) => {
-    // console.log('Inside the session middleware')
-  //  console.log(req.sessionID)
-    return uuid() // use UUIDs for session IDs
-  },
-  store: sessionStore,
-  secret: 'keyboard cat',
-  resave: true,
-  saveUninitialized: true
-}))
+        store: new SQLiteStore({dir:'./db/'}),
+        secret: 'my secret124',
+        cookie: { maxAge: 7 * 24 * 60 * 60 * 1000 } // 1 week
+      }))
 
 app.use(passport.initialize());
 app.use(passport.session());
@@ -148,9 +127,10 @@ app.get('/api/links/',(req,res) => {
               join roles r on u.roleid = r.id
               join roleslinks rl on rl.roleid = r.id
               join links l on l.id = rl.linkid
-              WHERE u.id = ${req.user.id}`;
-    const query = db.query(sql, (err, result) => {
+              WHERE u.id = "${req.user.id}"`;
+    const query = db.all(sql,[], (err, result) => {
     if (err){console.error(err);  return res.send(err)};
+    console.log('user: ',req.user,'sql: ',sql , 'result: ',result);
     res.send(result);
     });
 })
