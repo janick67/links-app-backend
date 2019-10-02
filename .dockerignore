@@ -1,6 +1,6 @@
 node_modules
 npm-debug.log
-links (1).sql
+links*.sql
 .gitignore
 .gitattributes
 .dockerignore
