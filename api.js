@@ -106,7 +106,7 @@ passport.use(new OIDCStrategy({
    responseMode: 'form_post',
 
    // Required, the reply URL registered in AAD for your app
-   redirectUrl: 'http://localhost:3000/auth/openid/return',
+   redirectUrl: 'https://links-app.azurewebsites.net/auth/openid/return',
 
    // Required if we use http for redirectUrl
    allowHttpForRedirectUrl: true,
@@ -332,7 +332,7 @@ app.post('/auth/openid/return',
 app.get('/logout', function(req, res){
   req.session.destroy(function(err) {
     req.logOut();
-    res.redirect('https://login.microsoftonline.com/common/oauth2/logout?post_logout_redirect_uri=http://localhost:3000');
+    res.redirect('https://login.microsoftonline.com/common/oauth2/logout?post_logout_redirect_uri=https://links-app.azurewebsites.net');
   });
 });
 
