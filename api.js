@@ -17,9 +17,9 @@ app.use(bodyParser.urlencoded({ extended: false }))
 app.use(bodyParser.json())
 app.use(cookieParser());
 
-const  users = [];
+const  users = []; //po zalogowaniu jest tam wrzucany użytkownik a nastepnie jest pobierany prze każdej deserializacji
 
-const findByOid = function(oid, fn) {
+const findByOid = function(oid, fn) {//przy deserializacji żeby pobrać użytkownika z tabeli
   console.log(users.length);
   if (typeof users[0] !== 'undefined' && typeof users[0]._json !== 'undefined') {
     users.forEach(el=>{
@@ -35,7 +35,7 @@ const findByOid = function(oid, fn) {
   return fn(null, null);
 };
 
-const azureOptions ={
+const azureOptions ={//cała konfiguracja pobierana z pliku config
   identityMetadata: config.creds.identityMetadata,
    clientID: config.creds.clientID,
    responseType: config.creds.responseType,
@@ -54,7 +54,7 @@ const azureOptions ={
    clockSkew: config.creds.clockSkew,
  }
 
-passport.use(new OIDCStrategy(azureOptions,
+passport.use(new OIDCStrategy(azureOptions, //decyzja o tym z jakiego sposobu uwierzytelniania korzystamy
   function(iss, sub, profile, accessToken, refreshToken, done) {
     if (!profile.oid) {
       return done(new Error("No oid found"), null);
@@ -76,7 +76,7 @@ passport.use(new OIDCStrategy(azureOptions,
   }
 ));
 
-
+//połaczenie do bazy z pliku
 let db = new sqlite3.Database('./db/data.sqlite',sqlite3.OPEN_READWRITE, (err) => {
   if (err) {
     console.error(err.message);
@@ -86,18 +86,16 @@ let db = new sqlite3.Database('./db/data.sqlite',sqlite3.OPEN_READWRITE, (err) =
 
 // tell passport how to serialize the user
 passport.serializeUser(function(user, done) {
-  console.log('serialize')
   done(null, user.oid);
 });
 
 passport.deserializeUser(function(oid, done) {
-  console.log('deserialize')
   findByOid(oid, function (err, user) {
     done(err, user);
   });
 });
 
-// add & configure middleware
+// konfiguracja sessji
 app.use(session({
         store: new SQLiteStore({
           dir:'./db/',
@@ -113,7 +111,7 @@ app.use(session({
 app.use(passport.initialize());
 app.use(passport.session());
 
-app.use(function(req, res, next) {
+app.use(function(req, res, next) { //pilnowanie ściezki, nie zalogowany użytkownik ma dostep tylko do logowania czyli /auth/openid/return
         if (typeof req.user !== 'undefined') console.log("użytkownik: ", req.user.username);
         else console.log("Brak użytkownika");
         if (typeof req.user === 'undefined' && req.path.indexOf('/auth/openid/return') == -1)
@@ -124,24 +122,7 @@ app.use(function(req, res, next) {
     next();
   });
 
-  app.use(function(req, res, next) {
-    if(typeof req.user === 'undefined' && req.path.indexOf('api/') >= 0 && req.path.indexOf('api/login') <= 0 ){
-        return res.status(404).send({error:"Najpierw się zaloguj",user:null});
-    }
-    next();
-  });
-
-app.post('/login', (req, res, next) => {
-  passport.authenticate('azuread-openidconnect', (err, user, info) => {
-    if (err || !user) return res.send({error:"Nie udało się uwierzytelnic",user:null});
-    req.login(user, (err) => {
-      return res.send({error:null,user:"Zalogowano pomyślnie"});
-    })
-  })(req, res, next)
-});
-
-
-app.get('/api/links/',(req,res) => {
+app.get('/api/links/',(req,res) => {// api do pobierania linków
   let groups = ''
   req.user._json.groups.forEach(el=>{
     groups+=`"${el}",`
@@ -158,7 +139,7 @@ app.get('/api/links/',(req,res) => {
 })
 
 
-app.get('/auth/openid/return',
+app.get('/auth/openid/return', //tutaj zaczyna się logowanie i azure wysyła odpowiedz po zalogowaniu
   function(req, res, next) {
     passport.authenticate('azuread-openidconnect',
       {
@@ -171,7 +152,7 @@ app.get('/auth/openid/return',
     res.redirect('/');
   });
 
-app.post('/auth/openid/return',
+app.post('/auth/openid/return', //tutaj zaczyna się logowanie i azure wysyła odpowiedz po zalogowaniu
   function(req, res, next) {
     passport.authenticate('azuread-openidconnect',
       {
@@ -192,9 +173,7 @@ app.get('/logout', function(req, res){
   });
 });
 
-
-
-app.use(express.static('./front/'));
+app.use(express.static('./front/')); //udostępnianie plików statycznych z frontem
 
 app.use(function(req, res, next) {
   return res.status(404).send('Route '+req.url+' Not found.');
