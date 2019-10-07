@@ -128,10 +128,11 @@ app.get('/api/links/',(req,res) => {// api do pobierania linków
     groups+=`"${el}",`
   })
   groups = `(${groups.substr(0,groups.length-1)})`
-    let sql = `SELECT DISTINCT l.* FROM groups g
+    let sql = `SELECT DISTINCT l.*,g.id groupid, g.name groupname FROM groups g
            join grouplinks gl on gl.groupId = g.id
            join links l on l.id = gl.linkid
-           WHERE g.oid in ${groups}`;
+           WHERE g.oid in ${groups}
+           order by g.id`;
     const query = db.all(sql,[], (err, result) => {
     if (err){console.error(err);  return res.send({err,result:null})};
     res.send({error:null,result});
