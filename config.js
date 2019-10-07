@@ -19,7 +19,7 @@ exports.creds = {
 
    // Required, the reply URL registered in AAD for your app
    //redirectUrl: 'https://links-app.azurewebsites.net/auth/openid/return',
-   redirectUrl: 'http://localhost:3000/auth/openid/return',
+   redirectUrl: 'https://links-app.azurewebsites.net/auth/openid/return',
 
    // Required if we use http for redirectUrl
    allowHttpForRedirectUrl: true,
@@ -58,6 +58,6 @@ exports.creds = {
 };
 
 // The url you need to go to destroy the session with AAD
-exports.destroySessionUrl = 'https://login.microsoftonline.com/common/oauth2/logout?post_logout_redirect_uri=http://localhost:3000';
+exports.destroySessionUrl = 'https://login.microsoftonline.com/common/oauth2/logout?post_logout_redirect_uri=https://links-app.azurewebsites.net/https://links-app.azurewebsites.net/';
 
 exports.port = 3000
